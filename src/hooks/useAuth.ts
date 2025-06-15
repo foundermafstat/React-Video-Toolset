@@ -22,6 +22,7 @@ export function useAuth() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.email);
       setUser(session?.user ?? null);
       if (session?.user) {
         await fetchProfile(session.user.id);
@@ -36,6 +37,7 @@ export function useAuth() {
 
   const fetchProfile = async (userId: string) => {
     try {
+      console.log('Fetching profile for user:', userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -46,14 +48,18 @@ export function useAuth() {
         console.error('Error fetching profile:', error);
         // If profile doesn't exist, create one
         if (error.code === 'PGRST116') {
+          console.log('Profile not found, creating new profile');
           await createProfile(userId);
+        } else {
+          setLoading(false);
         }
       } else {
+        console.log('Profile fetched successfully:', data);
         setProfile(data);
+        setLoading(false);
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
-    } finally {
       setLoading(false);
     }
   };
@@ -61,8 +67,12 @@ export function useAuth() {
   const createProfile = async (userId: string) => {
     try {
       const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user?.email) return;
+      if (!userData.user?.email) {
+        setLoading(false);
+        return;
+      }
 
+      console.log('Creating profile for:', userData.user.email);
       const { data, error } = await supabase
         .from('profiles')
         .insert([
@@ -77,29 +87,41 @@ export function useAuth() {
 
       if (error) {
         console.error('Error creating profile:', error);
+        setLoading(false);
       } else {
+        console.log('Profile created successfully:', data);
         setProfile(data);
+        setLoading(false);
       }
     } catch (error) {
       console.error('Error creating profile:', error);
+      setLoading(false);
     }
   };
 
   const signIn = async (email: string, password: string) => {
     try {
+      setLoading(true);
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim().toLowerCase(),
         password,
       });
+      
+      if (error) {
+        setLoading(false);
+      }
+      
       return { data, error };
     } catch (error) {
       console.error('Sign in error:', error);
+      setLoading(false);
       return { data: null, error };
     }
   };
 
   const signUp = async (email: string, password: string) => {
     try {
+      setLoading(true);
       const { data, error } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
         password,
@@ -107,15 +129,25 @@ export function useAuth() {
           emailRedirectTo: undefined, // Disable email confirmation
         }
       });
+      
+      if (error) {
+        setLoading(false);
+      }
+      
       return { data, error };
     } catch (error) {
       console.error('Sign up error:', error);
+      setLoading(false);
       return { data: null, error };
     }
   };
 
   const signOut = async () => {
+    setLoading(true);
     const { error } = await supabase.auth.signOut();
+    setUser(null);
+    setProfile(null);
+    setLoading(false);
     return { error };
   };
 

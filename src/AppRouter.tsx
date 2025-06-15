@@ -13,25 +13,33 @@ export function AppRouter() {
     <AuthProvider>
       <Router>
         <div className="min-h-screen bg-background">
-          <Navbar />
           <Routes>
             <Route path="/login" element={<LoginForm />} />
             
             <Route path="/admin/*" element={
               <ProtectedRoute requiredRole="ADMIN">
-                <AdminPanel />
+                <>
+                  <Navbar />
+                  <AdminPanel />
+                </>
               </ProtectedRoute>
             } />
             
             <Route path="/editor/*" element={
               <ProtectedRoute requiredRole="EDITOR">
-                <EditorDashboard />
+                <>
+                  <Navbar />
+                  <EditorDashboard />
+                </>
               </ProtectedRoute>
             } />
             
             <Route path="/viewer" element={
               <ProtectedRoute requiredRole="VIEWER">
-                <ViewerDashboard />
+                <>
+                  <Navbar />
+                  <ViewerDashboard />
+                </>
               </ProtectedRoute>
             } />
             
