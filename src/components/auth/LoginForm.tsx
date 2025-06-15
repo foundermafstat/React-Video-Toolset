@@ -12,6 +12,7 @@ export function LoginForm() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   
   const { signIn, signUp } = useAuthContext();
   const navigate = useNavigate();
@@ -20,22 +21,62 @@ export function LoginForm() {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setSuccess('');
+
+    // Basic validation
+    if (!email || !password) {
+      setError('Please fill in all fields');
+      setLoading(false);
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      setLoading(false);
+      return;
+    }
 
     try {
-      const { error } = isSignUp 
-        ? await signUp(email, password)
-        : await signIn(email, password);
-
-      if (error) {
-        setError(error.message);
+      if (isSignUp) {
+        const { error } = await signUp(email, password);
+        if (error) {
+          if (error.message.includes('already registered')) {
+            setError('An account with this email already exists. Please sign in instead.');
+          } else {
+            setError(error.message);
+          }
+        } else {
+          setSuccess('Account created successfully! You can now sign in.');
+          setIsSignUp(false);
+          setPassword('');
+        }
       } else {
-        navigate('/');
+        const { error } = await signIn(email, password);
+        if (error) {
+          if (error.message.includes('Invalid login credentials')) {
+            setError('Invalid email or password. Please check your credentials and try again.');
+          } else if (error.message.includes('Email not confirmed')) {
+            setError('Please check your email and confirm your account before signing in.');
+          } else {
+            setError(error.message);
+          }
+        } else {
+          navigate('/');
+        }
       }
     } catch (err) {
-      setError('An unexpected error occurred');
+      console.error('Authentication error:', err);
+      setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleToggleMode = () => {
+    setIsSignUp(!isSignUp);
+    setError('');
+    setSuccess('');
+    setPassword('');
   };
 
   return (
@@ -59,6 +100,7 @@ export function LoginForm() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email"
                 required
               />
             </div>
@@ -69,12 +111,19 @@ export function LoginForm() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                placeholder={isSignUp ? "Create a password (min 6 characters)" : "Enter your password"}
                 required
+                minLength={6}
               />
             </div>
             {error && (
-              <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
+              <div className="text-sm text-red-600 bg-red-50 p-3 rounded border border-red-200">
                 {error}
+              </div>
+            )}
+            {success && (
+              <div className="text-sm text-green-600 bg-green-50 p-3 rounded border border-green-200">
+                {success}
               </div>
             )}
             <Button type="submit" className="w-full" disabled={loading}>
@@ -84,7 +133,8 @@ export function LoginForm() {
               type="button"
               variant="ghost"
               className="w-full"
-              onClick={() => setIsSignUp(!isSignUp)}
+              onClick={handleToggleMode}
+              disabled={loading}
             >
               {isSignUp 
                 ? 'Already have an account? Sign In'

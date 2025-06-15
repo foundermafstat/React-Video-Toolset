@@ -42,8 +42,15 @@ export function useAuth() {
         .eq('id', userId)
         .single();
 
-      if (error) throw error;
-      setProfile(data);
+      if (error) {
+        console.error('Error fetching profile:', error);
+        // If profile doesn't exist, create one
+        if (error.code === 'PGRST116') {
+          await createProfile(userId);
+        }
+      } else {
+        setProfile(data);
+      }
     } catch (error) {
       console.error('Error fetching profile:', error);
     } finally {
@@ -51,20 +58,60 @@ export function useAuth() {
     }
   };
 
+  const createProfile = async (userId: string) => {
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user?.email) return;
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .insert([
+          {
+            id: userId,
+            email: userData.user.email,
+            role: 'VIEWER' as UserRole,
+          }
+        ])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating profile:', error);
+      } else {
+        setProfile(data);
+      }
+    } catch (error) {
+      console.error('Error creating profile:', error);
+    }
+  };
+
   const signIn = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { data, error };
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+      return { data, error };
+    } catch (error) {
+      console.error('Sign in error:', error);
+      return { data: null, error };
+    }
   };
 
   const signUp = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-    return { data, error };
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password,
+        options: {
+          emailRedirectTo: undefined, // Disable email confirmation
+        }
+      });
+      return { data, error };
+    } catch (error) {
+      console.error('Sign up error:', error);
+      return { data: null, error };
+    }
   };
 
   const signOut = async () => {
